@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save, Loader2 } from 'lucide-react';
+import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save, Loader2, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import RecordingControls from './RecordingControls';
 import RecordingPreview from './RecordingPreview';
