@@ -1,14 +1,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, Monitor, Mic, MicOff, Video, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import RecordingControls from './RecordingControls';
 import RecordingPreview from './RecordingPreview';
 import { RecordingOptions, RecordingState } from './types';
 
 const RecordingStudio: React.FC = () => {
+  const navigate = useNavigate();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingOptions, setRecordingOptions] = useState<RecordingOptions>({
     video: true,
@@ -19,6 +22,9 @@ const RecordingStudio: React.FC = () => {
   const [duration, setDuration] = useState<number>(0);
   const [permission, setPermission] = useState<{ video: boolean, audio: boolean }>({ video: false, audio: false });
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [videoTitle, setVideoTitle] = useState('Untitled Recording');
+  const [videoDescription, setVideoDescription] = useState('');
+  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -278,21 +284,86 @@ const RecordingStudio: React.FC = () => {
     setRecordingState('idle');
     chunksRef.current = [];
     setDuration(0);
+    setVideoTitle('Untitled Recording');
+    setVideoDescription('');
   };
 
   const saveRecording = () => {
     if (recordedBlob) {
+      // Generate a unique ID for the recording
+      const recordingId = `rec_${Date.now()}`;
+      
+      // In a real app, you would upload the blob to a server
+      // For now, we'll simulate by saving to localStorage and navigate to view
+      
+      // Create an object URL for the blob
       const url = URL.createObjectURL(recordedBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `recording-${new Date().toISOString()}.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
+      
+      // Save metadata to localStorage (in a real app, this would go to a database)
+      const recordingData = {
+        id: recordingId,
+        title: videoTitle,
+        description: videoDescription,
+        url: url,
+        duration: duration,
+        createdAt: new Date().toISOString(),
+        views: 0,
+        isPublic: false
+      };
+      
+      // Store in localStorage (as a simplified demo)
+      const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+      savedRecordings.push(recordingData);
+      localStorage.setItem('recordings', JSON.stringify(savedRecordings));
       
       toast({
         title: "Recording Saved",
-        description: "Your recording has been downloaded successfully.",
+        description: "Your recording has been saved successfully.",
       });
+      
+      // Navigate to the view recording page
+      navigate(`/recording/${recordingId}`);
+    }
+  };
+
+  const shareRecording = () => {
+    if (recordedBlob) {
+      // Generate a unique ID for the recording
+      const recordingId = `rec_${Date.now()}`;
+      
+      // In a real app, you would upload the blob to a server
+      // For now, we'll simulate by saving to localStorage and navigate to view
+      
+      // Create an object URL for the blob
+      const url = URL.createObjectURL(recordedBlob);
+      
+      // Save metadata to localStorage (in a real app, this would go to a database)
+      const recordingData = {
+        id: recordingId,
+        title: videoTitle,
+        description: videoDescription,
+        url: url,
+        duration: duration,
+        createdAt: new Date().toISOString(),
+        views: 0,
+        isPublic: true,
+        shareUrl: `${window.location.origin}/share/${recordingId}`
+      };
+      
+      // Store in localStorage (as a simplified demo)
+      const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+      savedRecordings.push(recordingData);
+      localStorage.setItem('recordings', JSON.stringify(savedRecordings));
+      
+      setRecordingState('shared');
+      
+      toast({
+        title: "Recording Shared",
+        description: "Your recording is now ready to share.",
+      });
+      
+      // Navigate to the view recording page with sharing options
+      navigate(`/recording/${recordingId}`);
     }
   };
 
@@ -408,6 +479,51 @@ const RecordingStudio: React.FC = () => {
           
           {recordingState === 'completed' && recordedBlob && (
             <div className="flex flex-col items-center">
+              <div className="w-full mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  {isEditingMetadata ? (
+                    <div className="w-full space-y-3">
+                      <Input
+                        value={videoTitle}
+                        onChange={(e) => setVideoTitle(e.target.value)}
+                        placeholder="Video title"
+                        className="text-xl font-bold"
+                      />
+                      <Input
+                        value={videoDescription}
+                        onChange={(e) => setVideoDescription(e.target.value)}
+                        placeholder="Add a description..."
+                        className="text-sm text-muted-foreground"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setIsEditingMetadata(false)}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="w-full">
+                      <h2 className="text-xl font-bold mb-1">{videoTitle}</h2>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {videoDescription || 'No description'}
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-muted-foreground"
+                        onClick={() => setIsEditingMetadata(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <video 
                 className="w-full max-h-[70vh] rounded-lg mb-6" 
                 controls
@@ -418,11 +534,37 @@ const RecordingStudio: React.FC = () => {
                 <Button variant="outline" onClick={discardRecording}>
                   Discard
                 </Button>
-                <Button className="gap-2" onClick={saveRecording}>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={saveRecording}
+                >
+                  <Save className="h-4 w-4" />
+                  Save Privately
+                </Button>
+                <Button className="gap-2" onClick={shareRecording}>
                   <Video className="h-4 w-4" />
-                  Save Recording
+                  Save & Share
                 </Button>
               </div>
+            </div>
+          )}
+          
+          {recordingState === 'shared' && (
+            <div className="text-center p-10">
+              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <Video className="h-10 w-10 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Your Video is Ready to Share!</h2>
+              <p className="text-muted-foreground mb-6">
+                Your recording has been saved and can now be shared with others.
+              </p>
+              <Button 
+                onClick={() => navigate('/recordings')}
+                className="gap-2"
+              >
+                View My Recordings
+              </Button>
             </div>
           )}
         </div>
