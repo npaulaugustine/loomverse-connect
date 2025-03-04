@@ -2,10 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import MagneticButton from '../ui/MagneticButton';
+import { Link, useLocation } from 'react-router-dom';
+import { Video } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,6 +21,11 @@ const Navbar: React.FC = () => {
   }, []);
 
   const scrollToSection = (id: string) => {
+    // Only scroll to sections on the homepage
+    if (location.pathname !== '/') {
+      return;
+    }
+    
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -33,37 +41,47 @@ const Navbar: React.FC = () => {
       )}
     >
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <a 
-          href="#hero" 
+        <Link 
+          to="/"
           className="text-xl font-semibold tracking-tight flex items-center gap-2 transition-opacity hover:opacity-80"
-          onClick={(e) => {
-            e.preventDefault();
-            scrollToSection('hero');
-          }}
         >
           <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
             <div className="w-4 h-4 rounded-full bg-accent animate-pulse-subtle"></div>
           </div>
           <span>Loomverse</span>
-        </a>
+        </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          {['features', 'about', 'contact'].map((item) => (
-            <button
-              key={item}
-              onClick={() => scrollToSection(item)}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors capitalize"
+          {location.pathname === '/' ? (
+            // Show home navigation on homepage
+            ['features', 'about', 'contact'].map((item) => (
+              <button
+                key={item}
+                onClick={() => scrollToSection(item)}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors capitalize"
+              >
+                {item}
+              </button>
+            ))
+          ) : (
+            // Show simple navigation on other pages
+            <Link
+              to="/"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              {item}
-            </button>
-          ))}
-          <MagneticButton 
-            className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-sm hover:shadow transition-all"
-            onClick={() => scrollToSection('contact')}
-          >
-            Get Started
-          </MagneticButton>
+              Home
+            </Link>
+          )}
+          
+          <Link to="/record">
+            <MagneticButton 
+              className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-sm hover:shadow transition-all flex items-center gap-2"
+            >
+              <Video className="h-4 w-4" />
+              Record
+            </MagneticButton>
+          </Link>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -95,26 +113,45 @@ const Navbar: React.FC = () => {
         mobileMenuOpen ? "translate-x-0" : "translate-x-full"
       )}>
         <nav className="flex flex-col gap-6 items-start">
-          {['features', 'about', 'contact'].map((item) => (
-            <button
-              key={item}
-              onClick={() => scrollToSection(item)}
-              className="text-lg font-medium hover:text-accent transition-colors capitalize"
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
-        <div className="mt-auto">
-          <button 
-            className="w-full py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-sm"
-            onClick={() => {
-              scrollToSection('contact');
-              setMobileMenuOpen(false);
-            }}
+          <Link
+            to="/"
+            className="text-lg font-medium hover:text-accent transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
           >
-            Get Started
-          </button>
+            Home
+          </Link>
+          
+          {location.pathname === '/' && 
+            ['features', 'about', 'contact'].map((item) => (
+              <button
+                key={item}
+                onClick={() => scrollToSection(item)}
+                className="text-lg font-medium hover:text-accent transition-colors capitalize"
+              >
+                {item}
+              </button>
+            ))
+          }
+          
+          <Link
+            to="/record"
+            className="text-lg font-medium hover:text-accent transition-colors flex items-center gap-2"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <Video className="h-4 w-4" />
+            Record
+          </Link>
+        </nav>
+        
+        <div className="mt-auto">
+          <Link to="/record" onClick={() => setMobileMenuOpen(false)}>
+            <button 
+              className="w-full py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-sm flex items-center justify-center gap-2"
+            >
+              <Video className="h-4 w-4" />
+              Start Recording
+            </button>
+          </Link>
         </div>
       </div>
     </header>

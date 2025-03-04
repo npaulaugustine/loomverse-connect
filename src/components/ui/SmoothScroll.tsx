@@ -9,28 +9,28 @@ interface SmoothScrollProps {
 
 const SmoothScroll: React.FC<SmoothScrollProps> = ({ children, className }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const observer = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
-    const handleScrollAnimation = () => {
-      const elements = document.querySelectorAll('.reveal');
-      
-      elements.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        
-        // Element is in viewport
-        if (rect.top < windowHeight * 0.85) {
-          el.classList.add('active');
-        }
-      });
-    };
+    // Setup intersection observer for reveal animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
 
-    window.addEventListener('scroll', handleScrollAnimation);
-    handleScrollAnimation(); // Initial check
+    // Observe all elements with 'reveal' class
+    const elements = document.querySelectorAll('.reveal');
+    elements.forEach((el) => observer.observe(el));
 
+    // Cleanup
     return () => {
-      window.removeEventListener('scroll', handleScrollAnimation);
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
     };
   }, []);
 
