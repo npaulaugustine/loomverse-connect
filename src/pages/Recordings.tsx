@@ -10,15 +10,15 @@ import {
   Clock, 
   Calendar, 
   Filter, 
-  Search, 
   Eye,
   Share2,
   Lock,
   TrashIcon,
   MoreHorizontal,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Tag,
+  FileText
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -27,11 +27,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Recording } from '@/components/recording/types';
 import { useToast } from '@/hooks/use-toast';
+import SearchRecordings from '@/components/search/SearchRecordings';
 
 const Recordings: React.FC = () => {
   const { toast } = useToast();
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [filteredRecordings, setFilteredRecordings] = useState<Recording[]>([]);
   
   // Load recordings from localStorage (in a real app, this would be an API call)
@@ -43,25 +43,12 @@ const Recordings: React.FC = () => {
       duration: rec.duration || 0,
       views: rec.views || 0,
       isPublic: rec.isPublic || false,
+      tags: rec.tags || [],
+      topics: rec.topics || [],
     }));
     setRecordings(mappedRecordings);
     setFilteredRecordings(mappedRecordings);
   }, []);
-  
-  // Filter recordings based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredRecordings(recordings);
-      return;
-    }
-    
-    const filtered = recordings.filter(rec => 
-      rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (rec.description && rec.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    
-    setFilteredRecordings(filtered);
-  }, [searchQuery, recordings]);
   
   const deleteRecording = (id: string) => {
     const updatedRecordings = recordings.filter(rec => rec.id !== id);
@@ -129,30 +116,11 @@ const Recordings: React.FC = () => {
           </div>
           
           <div className="bg-card border rounded-xl overflow-hidden shadow-sm mb-10 reveal">
-            <div className="p-4 border-b flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search recordings..."
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filter
-                </Button>
-                
-                <Button variant="outline" className="gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Date
-                </Button>
-              </div>
+            <div className="p-4 border-b">
+              <SearchRecordings 
+                recordings={recordings} 
+                onSearchResults={setFilteredRecordings} 
+              />
             </div>
             
             {/* Recordings list */}
@@ -162,7 +130,9 @@ const Recordings: React.FC = () => {
                   <Video className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-20" />
                   <h3 className="text-xl font-medium mb-2">No recordings found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {searchQuery ? "No recordings match your search" : "You haven't created any recordings yet"}
+                    {recordings.length > 0 
+                      ? "No recordings match your search criteria" 
+                      : "You haven't created any recordings yet"}
                   </p>
                   <Link to="/record">
                     <Button>Create Your First Recording</Button>
@@ -213,7 +183,28 @@ const Recordings: React.FC = () => {
                           {recording.description || "No description"}
                         </p>
                         
-                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                        {recording.tags && recording.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {recording.tags.map(tag => (
+                              <span 
+                                key={tag}
+                                className="inline-flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-xs text-muted-foreground"
+                              >
+                                <Tag className="h-3 w-3" />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {recording.transcription && (
+                          <div className="mb-3 text-xs text-muted-foreground flex items-start gap-1">
+                            <FileText className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                            <span className="line-clamp-1">{recording.transcription}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
                             <span>{formatDuration(recording.duration)}</span>

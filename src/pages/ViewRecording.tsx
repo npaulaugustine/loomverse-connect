@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import SmoothScroll from '../components/ui/SmoothScroll';
 import Navbar from '../components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, Share2, Lock, Link as LinkIcon, Eye, MessageCircle, Calendar } from 'lucide-react';
+import { Copy, Share2, Lock, Link as LinkIcon, Eye, MessageCircle, Calendar, FileText, Tag, ListFilter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ShareVideo from '../components/sharing/ShareVideo';
+import { Recording } from '@/components/recording/types';
 
 const ViewRecording: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,22 +19,39 @@ const ViewRecording: React.FC = () => {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [password, setPassword] = useState('');
   const [viewCount, setViewCount] = useState(0);
+  const [recording, setRecording] = useState<Recording | null>(null);
 
-  // Mock data - in a real app, this would come from an API call
-  const recording = {
-    id: id || '1',
-    title: 'Screen Recording Demo',
-    description: 'A demonstration of the screen recording feature',
-    url: 'https://example.com/video.mp4',
-    thumbnail: 'https://example.com/thumbnail.jpg',
-    duration: 120, // in seconds
-    createdAt: new Date(),
-    views: 5,
-    shareUrl: `${window.location.origin}/share/${id}`,
-    isPasswordProtected: isPasswordProtected,
-    expiresAt: expiryDate,
-    isPublic: true
-  };
+  // Load recording from localStorage
+  useEffect(() => {
+    const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+    const foundRecording = savedRecordings.find((rec: any) => rec.id === id);
+    
+    if (foundRecording) {
+      setRecording({
+        ...foundRecording,
+        createdAt: new Date(foundRecording.createdAt),
+        expiresAt: foundRecording.expiresAt ? new Date(foundRecording.expiresAt) : undefined,
+        views: (foundRecording.views || 0) + 1, // Increment view count
+      });
+      
+      setIsPasswordProtected(foundRecording.isPasswordProtected || false);
+      setExpiryDate(foundRecording.expiresAt ? new Date(foundRecording.expiresAt) : null);
+      setViewCount((foundRecording.views || 0) + 1);
+      
+      // Update view count in localStorage
+      const updatedRecordings = savedRecordings.map((rec: any) => {
+        if (rec.id === id) {
+          return {
+            ...rec,
+            views: (rec.views || 0) + 1,
+          };
+        }
+        return rec;
+      });
+      
+      localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
+    }
+  }, [id]);
 
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard.writeText(text);
@@ -57,6 +75,23 @@ const ViewRecording: React.FC = () => {
       description: `This link will expire in ${days} days`,
     });
   };
+
+  if (!recording) {
+    return (
+      <SmoothScroll className="relative">
+        <Navbar />
+        <main className="pt-24 pb-20">
+          <div className="section-container max-w-6xl mx-auto text-center">
+            <h1 className="text-3xl font-bold mb-4">Recording Not Found</h1>
+            <p className="text-muted-foreground mb-6">The recording you're looking for doesn't exist or has been deleted.</p>
+            <Link to="/recordings">
+              <Button>View All Recordings</Button>
+            </Link>
+          </div>
+        </main>
+      </SmoothScroll>
+    );
+  }
 
   return (
     <SmoothScroll className="relative">
@@ -99,8 +134,12 @@ const ViewRecording: React.FC = () => {
                 </Button>
               </div>
 
-              <Tabs defaultValue="comments" className="w-full reveal">
+              <Tabs defaultValue="info" className="w-full reveal">
                 <TabsList className="w-full">
+                  <TabsTrigger value="info" className="flex-1">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Info & Transcription
+                  </TabsTrigger>
                   <TabsTrigger value="comments" className="flex-1">
                     <MessageCircle className="mr-2 h-4 w-4" />
                     Comments
@@ -110,12 +149,67 @@ const ViewRecording: React.FC = () => {
                     Analytics
                   </TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="info" className="p-4 border rounded-lg mt-4">
+                  {recording.tags && recording.tags.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium mb-2">AI-Generated Tags</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {recording.tags.map(tag => (
+                          <div key={tag} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            {tag}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {recording.topics && recording.topics.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium mb-2">Key Topics</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {recording.topics.map(topic => (
+                          <div key={topic} className="bg-muted px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                            <ListFilter className="h-3 w-3" />
+                            {topic}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {recording.aiSummary && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium mb-2">AI Summary</h3>
+                      <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
+                        {recording.aiSummary}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {recording.transcription ? (
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Transcription</h3>
+                      <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground max-h-60 overflow-y-auto">
+                        {recording.transcription}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>No transcription available for this recording.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
                 <TabsContent value="comments" className="p-4 border rounded-lg mt-4">
                   <div className="text-center text-muted-foreground p-8">
                     <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No comments yet. Share this video to get feedback.</p>
                   </div>
                 </TabsContent>
+                
                 <TabsContent value="analytics" className="p-4 border rounded-lg mt-4">
                   <div className="text-center text-muted-foreground p-8">
                     <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -137,14 +231,17 @@ const ViewRecording: React.FC = () => {
                   <label className="text-sm font-medium mb-1 block">Share Link</label>
                   <div className="flex gap-2">
                     <Input 
-                      value={recording.shareUrl} 
+                      value={recording.shareUrl || `${window.location.origin}/share/${recording.id}`} 
                       readOnly 
                       className="text-sm"
                     />
                     <Button 
                       variant="outline" 
                       size="icon"
-                      onClick={() => copyToClipboard(recording.shareUrl || '', "Link copied to clipboard!")}
+                      onClick={() => copyToClipboard(
+                        recording.shareUrl || `${window.location.origin}/share/${recording.id}`, 
+                        "Link copied to clipboard!"
+                      )}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -181,6 +278,20 @@ const ViewRecording: React.FC = () => {
                               title: "Password Set",
                               description: "Your video is now password protected",
                             });
+                            
+                            // Update recording in localStorage
+                            const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+                            const updatedRecordings = savedRecordings.map((rec: any) => {
+                              if (rec.id === id) {
+                                return {
+                                  ...rec,
+                                  isPasswordProtected: true,
+                                };
+                              }
+                              return rec;
+                            });
+                            
+                            localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
                           }}
                         >
                           Set Password
@@ -195,21 +306,78 @@ const ViewRecording: React.FC = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setExpiration(1)}
+                        onClick={() => {
+                          setExpiration(1);
+                          
+                          // Update recording in localStorage
+                          const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+                          const date = new Date();
+                          date.setDate(date.getDate() + 1);
+                          
+                          const updatedRecordings = savedRecordings.map((rec: any) => {
+                            if (rec.id === id) {
+                              return {
+                                ...rec,
+                                expiresAt: date.toISOString(),
+                              };
+                            }
+                            return rec;
+                          });
+                          
+                          localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
+                        }}
                       >
                         1 Day
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setExpiration(7)}
+                        onClick={() => {
+                          setExpiration(7);
+                          
+                          // Update recording in localStorage
+                          const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+                          const date = new Date();
+                          date.setDate(date.getDate() + 7);
+                          
+                          const updatedRecordings = savedRecordings.map((rec: any) => {
+                            if (rec.id === id) {
+                              return {
+                                ...rec,
+                                expiresAt: date.toISOString(),
+                              };
+                            }
+                            return rec;
+                          });
+                          
+                          localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
+                        }}
                       >
                         7 Days
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setExpiration(30)}
+                        onClick={() => {
+                          setExpiration(30);
+                          
+                          // Update recording in localStorage
+                          const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+                          const date = new Date();
+                          date.setDate(date.getDate() + 30);
+                          
+                          const updatedRecordings = savedRecordings.map((rec: any) => {
+                            if (rec.id === id) {
+                              return {
+                                ...rec,
+                                expiresAt: date.toISOString(),
+                              };
+                            }
+                            return rec;
+                          });
+                          
+                          localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
+                        }}
                       >
                         30 Days
                       </Button>
@@ -222,6 +390,20 @@ const ViewRecording: React.FC = () => {
                             title: "No Expiration",
                             description: "This link will never expire",
                           });
+                          
+                          // Update recording in localStorage
+                          const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+                          const updatedRecordings = savedRecordings.map((rec: any) => {
+                            if (rec.id === id) {
+                              return {
+                                ...rec,
+                                expiresAt: null,
+                              };
+                            }
+                            return rec;
+                          });
+                          
+                          localStorage.setItem('recordings', JSON.stringify(updatedRecordings));
                         }}
                       >
                         No Limit
@@ -232,14 +414,14 @@ const ViewRecording: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-medium mb-2">Embed Options</h3>
                     <div className="bg-muted p-3 rounded-md text-xs font-mono break-all">
-                      {`<iframe src="${recording.shareUrl}/embed" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
+                      {`<iframe src="${recording.shareUrl || `${window.location.origin}/share/${recording.id}`}/embed" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
                     </div>
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full mt-2"
                       onClick={() => copyToClipboard(
-                        `<iframe src="${recording.shareUrl}/embed" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`,
+                        `<iframe src="${recording.shareUrl || `${window.location.origin}/share/${recording.id}`}/embed" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`,
                         "Embed code copied to clipboard!"
                       )}
                     >
@@ -249,7 +431,7 @@ const ViewRecording: React.FC = () => {
                 </div>
               </div>
 
-              <ShareVideo recording={recording} />
+              {recording && <ShareVideo recording={recording} />}
             </div>
           </div>
         </div>

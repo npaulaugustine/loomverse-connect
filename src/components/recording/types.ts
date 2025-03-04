@@ -20,4 +20,8 @@ export interface Recording {
   isPasswordProtected?: boolean;
   expiresAt?: Date;
   isPublic: boolean;
+  transcription?: string;
+  tags?: string[];
+  aiSummary?: string;
+  topics?: string[];
 }

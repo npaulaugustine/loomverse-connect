@@ -1,17 +1,23 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save } from 'lucide-react';
+import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import RecordingControls from './RecordingControls';
 import RecordingPreview from './RecordingPreview';
 import { RecordingOptions, RecordingState } from './types';
+import { 
+  generateTranscription, 
+  generateTags, 
+  generateSummary,
+  extractTopics 
+} from '@/services/ai-service';
 
 const RecordingStudio: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingOptions, setRecordingOptions] = useState<RecordingOptions>({
     video: true,
@@ -25,15 +31,17 @@ const RecordingStudio: React.FC = () => {
   const [videoTitle, setVideoTitle] = useState('Untitled Recording');
   const [videoDescription, setVideoDescription] = useState('');
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
-  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [topics, setTopics] = useState<string[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<number | null>(null);
-  
-  const { toast } = useToast();
 
   useEffect(() => {
     return () => {
@@ -44,7 +52,6 @@ const RecordingStudio: React.FC = () => {
 
   const checkPermissions = async () => {
     try {
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast({
           title: "Browser Not Supported",
@@ -54,7 +61,6 @@ const RecordingStudio: React.FC = () => {
         return false;
       }
 
-      // Check camera and microphone permissions
       const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
       const micPermissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       
@@ -77,7 +83,6 @@ const RecordingStudio: React.FC = () => {
         audio: recordingOptions.audio 
       });
       
-      // Clean up the temporary stream
       stream.getTracks().forEach(track => track.stop());
       
       setPermission({ video: true, audio: true });
@@ -117,7 +122,6 @@ const RecordingStudio: React.FC = () => {
       stopAllStreams();
       chunksRef.current = [];
       
-      // Request camera/microphone
       if (recordingOptions.video || recordingOptions.audio) {
         const hasPermission = await checkPermissions();
         if (!hasPermission) {
@@ -132,7 +136,6 @@ const RecordingStudio: React.FC = () => {
         streamRef.current = userStream;
       }
       
-      // Request screen share
       if (recordingOptions.screen) {
         try {
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -145,10 +148,7 @@ const RecordingStudio: React.FC = () => {
           });
           screenStreamRef.current = displayStream;
           
-          // If we're recording both camera and screen, we need to create a composite stream
           if (recordingOptions.video && streamRef.current) {
-            // Implement composite stream logic here if needed
-            // For now just use screen stream
             if (videoRef.current) {
               videoRef.current.srcObject = displayStream;
             }
@@ -195,7 +195,6 @@ const RecordingStudio: React.FC = () => {
         throw new Error('No media stream available');
       }
       
-      // Set up MediaRecorder
       const options = { mimeType: 'video/webm;codecs=vp9,opus' };
       mediaRecorderRef.current = new MediaRecorder(stream, options);
       
@@ -212,11 +211,9 @@ const RecordingStudio: React.FC = () => {
         if (timerRef.current) window.clearInterval(timerRef.current);
       };
       
-      // Start recording
-      mediaRecorderRef.current.start(1000); // Collect data every second
+      mediaRecorderRef.current.start(1000);
       setRecordingState('recording');
       
-      // Start duration timer
       setDuration(0);
       timerRef.current = window.setInterval(() => {
         setDuration(prev => prev + 1);
@@ -286,20 +283,60 @@ const RecordingStudio: React.FC = () => {
     setDuration(0);
     setVideoTitle('Untitled Recording');
     setVideoDescription('');
+    setTranscription(null);
+    setTags([]);
+    setAiSummary(null);
+    setTopics([]);
   };
 
-  const saveRecording = () => {
+  const processRecordingWithAI = async () => {
+    if (!recordedBlob) return;
+    
+    setIsProcessing(true);
+    toast({
+      title: "Processing Recording",
+      description: "Analyzing your recording with AI...",
+    });
+    
+    try {
+      const textTranscription = await generateTranscription(recordedBlob);
+      setTranscription(textTranscription);
+      
+      const generatedTags = await generateTags(textTranscription);
+      setTags(generatedTags);
+      
+      const summary = await generateSummary(textTranscription);
+      setAiSummary(summary);
+      
+      const keyTopics = await extractTopics(textTranscription);
+      setTopics(keyTopics);
+      
+      toast({
+        title: "Analysis Complete",
+        description: "Your recording has been processed with AI.",
+      });
+    } catch (error) {
+      console.error('AI processing error:', error);
+      toast({
+        title: "Processing Error",
+        description: "Failed to analyze recording with AI.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const saveRecording = async () => {
     if (recordedBlob) {
-      // Generate a unique ID for the recording
+      if (!transcription) {
+        await processRecordingWithAI();
+      }
+      
       const recordingId = `rec_${Date.now()}`;
       
-      // In a real app, you would upload the blob to a server
-      // For now, we'll simulate by saving to localStorage and navigate to view
-      
-      // Create an object URL for the blob
       const url = URL.createObjectURL(recordedBlob);
       
-      // Save metadata to localStorage (in a real app, this would go to a database)
       const recordingData = {
         id: recordingId,
         title: videoTitle,
@@ -308,10 +345,13 @@ const RecordingStudio: React.FC = () => {
         duration: duration,
         createdAt: new Date().toISOString(),
         views: 0,
-        isPublic: false
+        isPublic: false,
+        transcription: transcription,
+        tags: tags,
+        aiSummary: aiSummary,
+        topics: topics
       };
       
-      // Store in localStorage (as a simplified demo)
       const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
       savedRecordings.push(recordingData);
       localStorage.setItem('recordings', JSON.stringify(savedRecordings));
@@ -321,23 +361,20 @@ const RecordingStudio: React.FC = () => {
         description: "Your recording has been saved successfully.",
       });
       
-      // Navigate to the view recording page
       navigate(`/recording/${recordingId}`);
     }
   };
 
-  const shareRecording = () => {
+  const shareRecording = async () => {
     if (recordedBlob) {
-      // Generate a unique ID for the recording
+      if (!transcription) {
+        await processRecordingWithAI();
+      }
+      
       const recordingId = `rec_${Date.now()}`;
       
-      // In a real app, you would upload the blob to a server
-      // For now, we'll simulate by saving to localStorage and navigate to view
-      
-      // Create an object URL for the blob
       const url = URL.createObjectURL(recordedBlob);
       
-      // Save metadata to localStorage (in a real app, this would go to a database)
       const recordingData = {
         id: recordingId,
         title: videoTitle,
@@ -347,10 +384,13 @@ const RecordingStudio: React.FC = () => {
         createdAt: new Date().toISOString(),
         views: 0,
         isPublic: true,
-        shareUrl: `${window.location.origin}/share/${recordingId}`
+        shareUrl: `${window.location.origin}/share/${recordingId}`,
+        transcription: transcription,
+        tags: tags,
+        aiSummary: aiSummary,
+        topics: topics
       };
       
-      // Store in localStorage (as a simplified demo)
       const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
       savedRecordings.push(recordingData);
       localStorage.setItem('recordings', JSON.stringify(savedRecordings));
@@ -362,7 +402,6 @@ const RecordingStudio: React.FC = () => {
         description: "Your recording is now ready to share.",
       });
       
-      // Navigate to the view recording page with sharing options
       navigate(`/recording/${recordingId}`);
     }
   };
@@ -530,19 +569,68 @@ const RecordingStudio: React.FC = () => {
                 src={URL.createObjectURL(recordedBlob)}
               />
               
+              {isProcessing ? (
+                <div className="w-full p-4 bg-muted rounded-lg mb-6 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
+                  <p>Analyzing recording with AI...</p>
+                </div>
+              ) : (
+                <>
+                  {transcription && (
+                    <div className="w-full mb-6">
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h3 className="font-medium mb-2">AI-Generated Transcription</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {transcription}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {tags && tags.length > 0 && (
+                    <div className="w-full mb-6">
+                      <h3 className="font-medium mb-2">AI-Generated Tags</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map(tag => (
+                          <div key={tag} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            {tag}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <div className="flex gap-4">
                 <Button variant="outline" onClick={discardRecording}>
                   Discard
                 </Button>
+                {!transcription && !isProcessing && (
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={processRecordingWithAI}
+                  >
+                    <Video className="h-4 w-4" />
+                    Process with AI
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="gap-2"
                   onClick={saveRecording}
+                  disabled={isProcessing}
                 >
                   <Save className="h-4 w-4" />
                   Save Privately
                 </Button>
-                <Button className="gap-2" onClick={shareRecording}>
+                <Button 
+                  className="gap-2" 
+                  onClick={shareRecording}
+                  disabled={isProcessing}
+                >
                   <Video className="h-4 w-4" />
                   Save & Share
                 </Button>
