@@ -24,4 +24,11 @@ export interface Recording {
   tags?: string[];
   aiSummary?: string;
   topics?: string[];
+  
+  // Analytics-related properties
+  engagementScore?: number;
+  averageViewDuration?: number;
+  viewerRetention?: number;
+  completionRate?: number;
+  dropOffPoints?: { timestamp: number, percentage: number }[];
 }
