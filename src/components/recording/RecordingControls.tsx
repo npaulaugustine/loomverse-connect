@@ -27,25 +27,55 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between bg-background border-t p-4">
+    <div className="flex items-center justify-center p-3 mt-4 bg-black/80 rounded-full w-fit mx-auto">
       <div className="flex items-center gap-4">
         {recordingState === 'recording' ? (
-          <Button variant="outline" size="icon" onClick={onPause}>
-            <Pause className="h-4 w-4" />
-          </Button>
+          <button 
+            className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white"
+            onClick={onPause}
+          >
+            <Pause className="h-5 w-5" />
+          </button>
         ) : (
-          <Button variant="outline" size="icon" onClick={onResume}>
-            <Play className="h-4 w-4" />
-          </Button>
+          <button 
+            className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white"
+            onClick={onResume}
+          >
+            <Play className="h-5 w-5" />
+          </button>
         )}
-        <Button variant="destructive" size="icon" onClick={onStop}>
-          <Square className="h-4 w-4" />
-        </Button>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-destructive animate-pulse"></div>
-        <span className="font-mono">{formatDuration(duration)}</span>
+        
+        <div className="text-white font-mono">{formatDuration(duration)}</div>
+        
+        <button 
+          className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white"
+          onClick={onStop}
+        >
+          <Square className="h-5 w-5" fill="white" />
+        </button>
+        
+        <button className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="2" fill="white" />
+            <circle cx="6" cy="12" r="2" fill="white" />
+            <circle cx="18" cy="12" r="2" fill="white" />
+          </svg>
+        </button>
+        
+        <button className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 7L5 7" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path d="M19 12L5 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path d="M19 17L5 17" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        
+        <button className="h-9 w-9 rounded-full bg-transparent hover:bg-white/10 flex items-center justify-center text-white">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6L6 18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path d="M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
     </div>
   );

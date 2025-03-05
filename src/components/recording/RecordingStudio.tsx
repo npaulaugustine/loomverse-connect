@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save, Loader2, Tag } from 'lucide-react';
+import { Camera, Monitor, Mic, MicOff, Video, AlertCircle, Edit, Save, Loader2, Tag, X, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import RecordingControls from './RecordingControls';
 import RecordingPreview from './RecordingPreview';
@@ -524,264 +524,218 @@ const RecordingStudio: React.FC = () => {
   };
 
   return (
-    <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-      <Tabs defaultValue="camera" className="w-full">
-        <TabsList className="w-full rounded-none border-b bg-muted/50 p-0">
-          <TabsTrigger 
-            value="camera" 
-            className="rounded-none border-r data-[state=active]:bg-background py-3 flex-1"
-            onClick={() => setRecordingOptions(prev => ({ ...prev, video: true, screen: false }))}
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            Camera Only
-          </TabsTrigger>
-          <TabsTrigger 
-            value="screen" 
-            className="rounded-none border-r data-[state=active]:bg-background py-3 flex-1"
-            onClick={() => setRecordingOptions(prev => ({ ...prev, video: false, screen: true }))}
-          >
-            <Monitor className="mr-2 h-4 w-4" />
-            Screen Only
-          </TabsTrigger>
-          <TabsTrigger 
-            value="both" 
-            className="rounded-none data-[state=active]:bg-background py-3 flex-1"
-            onClick={() => setRecordingOptions(prev => ({ ...prev, video: true, screen: true }))}
-          >
-            <Video className="mr-2 h-4 w-4" />
-            Camera & Screen
-          </TabsTrigger>
-        </TabsList>
-        
+    <div className="bg-white rounded-xl overflow-hidden">
+      {recordingState === 'idle' && (
         <div className="p-6">
-          {recordingState === 'idle' && (
-            <div className="flex flex-col items-center justify-center">
-              <div className="relative w-full aspect-video bg-muted rounded-lg mb-6 flex items-center justify-center overflow-hidden">
-                {!permission.video && recordingOptions.video && (
+          <div className="rounded-lg overflow-hidden mb-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-lg">
+                <Monitor className="h-5 w-5 text-slate-600" />
+                <span className="text-slate-700 font-medium">Full Screen</span>
+                <div className="ml-auto">
+                  <div className="w-12 h-6 bg-slate-200 rounded-full relative flex items-center cursor-pointer"
+                    onClick={() => onOptionChange('screen', !recordingOptions.screen)}>
+                    <div className={`absolute h-5 w-5 rounded-full transition-all ${recordingOptions.screen ? 'right-0.5 bg-blue-500' : 'left-0.5 bg-white'}`}></div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-lg">
+                <Camera className="h-5 w-5 text-slate-600" />
+                <span className="text-slate-700 font-medium">FaceTime HD Camera</span>
+                <div className="ml-auto">
+                  <div className="w-12 h-6 bg-blue-500 rounded-full relative flex items-center cursor-pointer"
+                    onClick={() => onOptionChange('video', !recordingOptions.video)}>
+                    <div className={`absolute h-5 w-5 rounded-full transition-all ${recordingOptions.video ? 'right-0.5 bg-white' : 'left-0.5 bg-white'}`}></div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-lg">
+                <Mic className="h-5 w-5 text-slate-600" />
+                <span className="text-slate-700 font-medium">Default - MacBook Pro Microphone</span>
+                <div className="ml-auto">
+                  <div className="w-12 h-6 bg-blue-500 rounded-full relative flex items-center cursor-pointer"
+                    onClick={() => onOptionChange('audio', !recordingOptions.audio)}>
+                    <div className={`absolute h-5 w-5 rounded-full transition-all ${recordingOptions.audio ? 'right-0.5 bg-white' : 'left-0.5 bg-white'}`}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative w-full">
+              {!permission.video && recordingOptions.video ? (
+                <div className="aspect-video bg-slate-100 rounded-lg flex items-center justify-center">
                   <div className="text-center">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Camera permission is required</p>
+                    <Camera className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                    <p className="text-slate-500 mb-4">Camera permission is required</p>
                     <Button 
                       variant="outline" 
-                      className="mt-4"
+                      size="sm"
                       onClick={requestPermissions}
                     >
                       Grant Permissions
                     </Button>
                   </div>
-                )}
-                {permission.video && recordingOptions.video && (
-                  <video 
-                    ref={videoRef} 
-                    className="w-full h-full object-cover" 
-                    autoPlay 
-                    muted 
-                    playsInline
-                    style={{ transform: 'none' }}
-                  />
-                )}
-                {recordingOptions.screen && !recordingOptions.video && (
-                  <div className="text-center">
-                    <Monitor className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Your screen will be shared when recording starts</p>
-                  </div>
-                )}
-                {recordingOptions.screen && recordingOptions.video && permission.video && (
-                  <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm">
-                    Your screen will also be recorded
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-4 mb-6">
-                <Button
-                  variant={recordingOptions.audio ? "default" : "outline"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => onOptionChange('audio', !recordingOptions.audio)}
-                >
-                  {recordingOptions.audio ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-                  {recordingOptions.audio ? "Microphone On" : "Microphone Off"}
-                </Button>
-              </div>
-              
-              <Button 
-                size="lg" 
-                className="gap-2 px-8" 
-                onClick={startCountdown}
-              >
-                <Video className="h-5 w-5" />
-                Start Recording
-              </Button>
-            </div>
-          )}
-          
-          {countdown > 0 && (
-            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
-              <div className="text-white text-9xl font-bold animate-pulse">
-                {countdown}
-              </div>
-            </div>
-          )}
-          
-          {(recordingState === 'recording' || recordingState === 'paused') && (
-            <RecordingPreview 
-              videoRef={videoRef} 
-              duration={duration}
-              isPaused={recordingState === 'paused'}
-            />
-          )}
-          
-          {recordingState === 'completed' && recordedBlob && (
-            <div className="flex flex-col items-center">
-              <div className="w-full mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  {isEditingMetadata ? (
-                    <div className="w-full space-y-3">
-                      <Input
-                        value={videoTitle}
-                        onChange={(e) => setVideoTitle(e.target.value)}
-                        placeholder="Video title"
-                        className="text-xl font-bold"
-                      />
-                      <Input
-                        value={videoDescription}
-                        onChange={(e) => setVideoDescription(e.target.value)}
-                        placeholder="Add a description..."
-                        className="text-sm text-muted-foreground"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setIsEditingMetadata(false)}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="w-full">
-                      <h2 className="text-xl font-bold mb-1">{videoTitle}</h2>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {videoDescription || 'No description'}
-                      </p>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-muted-foreground"
-                        onClick={() => setIsEditingMetadata(true)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              </div>
-              
-              <video 
-                className="w-full max-h-[70vh] rounded-lg mb-6" 
-                controls
-                src={URL.createObjectURL(recordedBlob)}
-              />
-              
-              {isProcessing ? (
-                <div className="w-full p-4 bg-muted rounded-lg mb-6 flex items-center justify-center">
-                  <Loader2 className="h-5 w-5 text-primary animate-spin mr-2" />
-                  <p>Analyzing recording with AI...</p>
-                </div>
+              ) : permission.video && recordingOptions.video ? (
+                <video 
+                  ref={videoRef} 
+                  className="w-full aspect-video rounded-lg object-cover" 
+                  autoPlay 
+                  muted 
+                  playsInline
+                  style={{ transform: 'none' }}
+                />
               ) : (
-                <>
-                  {transcription && (
-                    <div className="w-full mb-6">
-                      <div className="p-4 bg-muted rounded-lg">
-                        <h3 className="font-medium mb-2">AI-Generated Transcription</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {transcription}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {tags && tags.length > 0 && (
-                    <div className="w-full mb-6">
-                      <h3 className="font-medium mb-2">AI-Generated Tags</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {tags.map(tag => (
-                          <div key={tag} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-1">
-                            <Tag className="h-3 w-3" />
-                            {tag}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="aspect-video bg-slate-100 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <Monitor className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                    <p className="text-slate-500">Your screen will be shared when recording starts</p>
+                  </div>
+                </div>
               )}
-              
-              <div className="flex gap-4">
-                <Button variant="outline" onClick={discardRecording}>
-                  Discard
-                </Button>
-                {!transcription && !isProcessing && (
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={processRecordingWithAI}
-                  >
-                    <Video className="h-4 w-4" />
-                    Process with AI
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={saveRecording}
-                  disabled={isProcessing}
-                >
-                  <Save className="h-4 w-4" />
-                  Save Privately
-                </Button>
-                <Button 
-                  className="gap-2" 
-                  onClick={shareRecording}
-                  disabled={isProcessing}
-                >
-                  <Video className="h-4 w-4" />
-                  Save & Share
-                </Button>
-              </div>
             </div>
-          )}
+          </div>
           
-          {recordingState === 'shared' && (
-            <div className="text-center p-10">
-              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <Video className="h-10 w-10 text-green-600" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Your Video is Ready to Share!</h2>
-              <p className="text-muted-foreground mb-6">
-                Your recording has been saved and can now be shared with others.
-              </p>
-              <Button 
-                onClick={() => navigate('/recordings')}
-                className="gap-2"
-              >
-                View My Recordings
-              </Button>
+          <Button 
+            size="lg" 
+            className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-full" 
+            onClick={startCountdown}
+          >
+            Start Recording
+          </Button>
+          
+          <div className="flex justify-center gap-8 mt-6">
+            <div className="flex flex-col items-center">
+              <button className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center mb-1">
+                <RefreshCw className="h-5 w-5 text-slate-600" />
+              </button>
+              <span className="text-xs text-slate-500">Effects</span>
             </div>
-          )}
+            <div className="flex flex-col items-center">
+              <button className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center mb-1">
+                <div className="h-5 w-5 bg-slate-600" style={{ borderRadius: '2px' }}></div>
+              </button>
+              <span className="text-xs text-slate-500">Blur</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <button className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center mb-1">
+                <svg className="h-5 w-5 text-slate-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="2" fill="currentColor" />
+                  <circle cx="19" cy="12" r="2" fill="currentColor" />
+                  <circle cx="5" cy="12" r="2" fill="currentColor" />
+                </svg>
+              </button>
+              <span className="text-xs text-slate-500">More</span>
+            </div>
+          </div>
         </div>
-      </Tabs>
+      )}
+      
+      {countdown > 0 && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
+          <div className="text-white text-9xl font-bold animate-pulse">
+            {countdown}
+          </div>
+        </div>
+      )}
       
       {(recordingState === 'recording' || recordingState === 'paused') && (
-        <RecordingControls 
-          recordingState={recordingState}
-          duration={duration}
-          onPause={pauseRecording}
-          onResume={resumeRecording}
-          onStop={stopRecording}
-        />
+        <div className="p-6">
+          <RecordingPreview 
+            videoRef={videoRef} 
+            duration={duration}
+            isPaused={recordingState === 'paused'}
+          />
+          <RecordingControls 
+            recordingState={recordingState}
+            duration={duration}
+            onPause={pauseRecording}
+            onResume={resumeRecording}
+            onStop={stopRecording}
+          />
+        </div>
+      )}
+      
+      {recordingState === 'completed' && recordedBlob && (
+        <div className="p-6">
+          <div className="flex flex-col items-center">
+            <div className="w-full mb-6">
+              <div className="flex justify-between items-center mb-4">
+                {isEditingMetadata ? (
+                  <div className="w-full space-y-3">
+                    <Input
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      placeholder="Video title"
+                      className="text-xl font-bold"
+                    />
+                    <Input
+                      value={videoDescription}
+                      onChange={(e) => setVideoDescription(e.target.value)}
+                      placeholder="Add a description..."
+                      className="text-sm text-muted-foreground"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setIsEditingMetadata(false)}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <h2 className="text-xl font-bold mb-1">{videoTitle}</h2>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {videoDescription || 'No description'}
+                    </p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-muted-foreground"
+                      onClick={() => setIsEditingMetadata(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <video 
+              className="w-full max-h-[70vh] rounded-lg mb-6" 
+              controls
+              src={URL.createObjectURL(recordedBlob)}
+            />
+            
+            <div className="flex flex-col w-full">
+              <Button
+                size="lg"
+                className="mb-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-md"
+                onClick={shareRecording}
+                disabled={isProcessing}
+              >
+                Share video
+              </Button>
+              
+              <Button 
+                variant="outline"
+                size="lg"
+                className="bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                onClick={saveRecording}
+                disabled={isProcessing}
+              >
+                Edit video
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

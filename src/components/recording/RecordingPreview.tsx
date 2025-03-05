@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 
 interface RecordingPreviewProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -73,10 +74,10 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
   }, [videoRef]);
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full rounded-lg overflow-hidden bg-slate-800">
       <video 
         ref={videoRef} 
-        className="w-full aspect-video rounded-lg object-cover" 
+        className="w-full aspect-video object-cover" 
         autoPlay 
         muted 
         playsInline
@@ -84,8 +85,8 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
       />
       
       {!isPreviewVisible && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/30 rounded-lg">
-          <p className="text-sm text-muted-foreground bg-background/80 px-3 py-1 rounded-md">
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-800/30">
+          <p className="text-sm text-white bg-slate-800/80 px-3 py-1 rounded-md">
             Recording in progress...
           </p>
         </div>
@@ -94,6 +95,12 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
       <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`}></div>
         {formatDuration(duration)}
+      </div>
+      
+      <div className="absolute top-2 right-2">
+        <button className="h-8 w-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70">
+          <X className="h-4 w-4" />
+        </button>
       </div>
       
       {isPaused && (
