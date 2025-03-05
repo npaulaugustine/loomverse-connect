@@ -21,9 +21,12 @@ export interface Recording {
   expiresAt?: Date;
   isPublic: boolean;
   transcription?: string;
+  editedTranscription?: string;
   tags?: string[];
   aiSummary?: string;
   topics?: string[];
+  fillerWordsRemoved?: boolean;
+  variables?: { [key: string]: string };
   
   // Analytics-related properties
   engagementScore?: number;
@@ -31,4 +34,17 @@ export interface Recording {
   viewerRetention?: number;
   completionRate?: number;
   dropOffPoints?: { timestamp: number, percentage: number }[];
+}
+
+export interface TranscriptSegment {
+  startTime: number;
+  endTime: number;
+  text: string;
+  isFillerWord?: boolean;
+}
+
+export interface EditableTranscript {
+  segments: TranscriptSegment[];
+  originalText: string;
+  editedText?: string;
 }

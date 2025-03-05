@@ -40,8 +40,8 @@ const Features: React.FC = () => {
           <path d="M14.5 8.5a2.5 2.5 0 0 1 0 5 2.5 2.5 0 0 1 0-5z"></path>
         </svg>
       ),
-      title: "Seamless Integration",
-      description: "Integrate with your favorite tools and platforms for a streamlined workflow."
+      title: "AI-Powered Enhancement",
+      description: "Remove filler words, generate titles and summaries, and extract key topics with our advanced AI tools."
     },
     {
       icon: (
@@ -51,8 +51,8 @@ const Features: React.FC = () => {
           <path d="M12 17h.01"></path>
         </svg>
       ),
-      title: "Intelligent Insights",
-      description: "Gain valuable insights into how your videos are performing with comprehensive analytics."
+      title: "Transcript Editing",
+      description: "Edit your video by modifying the transcript. Perfect for fixing mistakes without re-recording."
     },
     {
       icon: (
@@ -68,8 +68,8 @@ const Features: React.FC = () => {
           <path d="M15 9v1"></path>
         </svg>
       ),
-      title: "Custom Controls",
-      description: "Tailor the recording experience to your needs with customizable controls and settings."
+      title: "Variable Substitution",
+      description: "Create personalized videos for different audiences by using variables in your recordings."
     },
     {
       icon: (

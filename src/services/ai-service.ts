@@ -5,7 +5,7 @@
  * For now, we'll simulate the AI functionality.
  */
 
-import { Recording } from "@/components/recording/types";
+import { EditableTranscript, Recording, TranscriptSegment } from "@/components/recording/types";
 
 // Mock function to generate transcription
 export const generateTranscription = async (audioBlob: Blob): Promise<string> => {
@@ -91,6 +91,113 @@ export const extractTopics = async (transcription: string): Promise<string[]> =>
   }
   
   return selectedTopics;
+};
+
+// Generate detailed transcript with timestamps and filler word detection
+export const generateDetailedTranscript = async (audioBlob: Blob): Promise<EditableTranscript> => {
+  console.log("Generating detailed transcript with timestamps...");
+  
+  // Simulate processing time
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Generate mock transcript segments with timestamps
+  const segments: TranscriptSegment[] = [
+    { startTime: 0, endTime: 3.2, text: "Hello everyone, um, thanks for joining today's meeting." },
+    { startTime: 3.5, endTime: 7.8, text: "Today we're going to discuss, you know, our product roadmap for Q3." },
+    { startTime: 8.1, endTime: 12.5, text: "So, like, the first item on our agenda is the new feature rollout." },
+    { startTime: 13.0, endTime: 18.2, text: "We have, uh, several key updates planned for the next release." },
+    { startTime: 18.5, endTime: 25.0, text: "And I think this will really help us meet our objectives for the quarter." }
+  ];
+  
+  // Identify filler words
+  const fillerWords = ["um", "uh", "like", "you know", "so"];
+  const markedSegments = segments.map(segment => {
+    const words = segment.text.split(" ");
+    const hasFillerWord = words.some(word => 
+      fillerWords.some(filler => word.toLowerCase() === filler)
+    );
+    
+    return {
+      ...segment,
+      isFillerWord: hasFillerWord
+    };
+  });
+  
+  const originalText = segments.map(s => s.text).join(" ");
+  
+  return {
+    segments: markedSegments,
+    originalText: originalText
+  };
+};
+
+// Remove filler words from transcript
+export const removeFillerWords = async (transcript: EditableTranscript): Promise<EditableTranscript> => {
+  console.log("Removing filler words from transcript...");
+  
+  // Simulate processing time
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Filter out filler words
+  const fillerWords = ["um", "uh", "like", "you know", "so,"];
+  
+  const cleanedSegments = transcript.segments.map(segment => {
+    let text = segment.text;
+    
+    fillerWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      text = text.replace(regex, '');
+      // Clean up double spaces
+      text = text.replace(/\s+/g, ' ').trim();
+    });
+    
+    return {
+      ...segment,
+      text: text
+    };
+  });
+  
+  const editedText = cleanedSegments.map(s => s.text).join(" ");
+  
+  return {
+    segments: cleanedSegments,
+    originalText: transcript.originalText,
+    editedText: editedText
+  };
+};
+
+// Generate AI title suggestion
+export const generateAutoTitle = async (transcription: string): Promise<string> => {
+  console.log("Generating auto title...");
+  
+  // Simulate processing time
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  // Simple mock function to generate a title
+  const possibleTitles = [
+    "Team Update: Q3 Roadmap Discussion",
+    "Product Feature Rollout Planning",
+    "Quarterly Objectives Review",
+    "Development Team Sync-up",
+    "Project Status and Next Steps"
+  ];
+  
+  return possibleTitles[Math.floor(Math.random() * possibleTitles.length)];
+};
+
+// Process variables in transcript
+export const processVariables = async (text: string, variables: { [key: string]: string }): Promise<string> => {
+  console.log("Processing variables in transcript...");
+  
+  let processedText = text;
+  
+  // Replace all variables in format {{variable_name}}
+  Object.entries(variables).forEach(([key, value]) => {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    processedText = processedText.replace(regex, value);
+  });
+  
+  return processedText;
 };
 
 // Simulate searching videos based on search term
