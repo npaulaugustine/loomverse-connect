@@ -200,7 +200,7 @@ const TranscriptEditor: React.FC<TranscriptEditorProps> = ({
         <div className="grid grid-cols-3 gap-3 mb-3">
           {Object.entries(variables).map(([key, value]) => (
             <div key={key} className="flex items-center bg-muted/30 rounded p-2 text-sm">
-              <span className="font-mono text-primary">{{"{{"}{key}{"}}"}}}</span>
+              <span className="font-mono text-primary">{`{{${key}}}`}</span>
               <span className="mx-2">=</span>
               <span className="truncate">{value}</span>
               <Button
