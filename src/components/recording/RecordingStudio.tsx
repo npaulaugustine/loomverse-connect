@@ -40,10 +40,12 @@ const RecordingStudio: React.FC = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
+  const [cameraPosition, setCameraPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const userVideoRef = useRef<HTMLVideoElement>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<number | null>(null);
 
@@ -187,6 +189,11 @@ const RecordingStudio: React.FC = () => {
         
         streamRef.current = userStream;
         
+        if (recordingOptions.video && userVideoRef.current) {
+          userVideoRef.current.srcObject = userStream;
+          await userVideoRef.current.play().catch(e => console.error("Could not play user video:", e));
+        }
+        
         if (recordingOptions.video) {
           videoTracks = [...videoTracks, ...userStream.getVideoTracks()];
         }
@@ -209,11 +216,20 @@ const RecordingStudio: React.FC = () => {
           
           screenStreamRef.current = displayStream;
           
+          if (videoRef.current) {
+            videoRef.current.srcObject = displayStream;
+            await videoRef.current.play().catch(e => console.error("Could not play screen video:", e));
+          }
+          
           videoTracks = [...videoTracks, ...displayStream.getVideoTracks()];
           
           if (recordingOptions.audio) {
             audioTracks = [...audioTracks, ...displayStream.getAudioTracks()];
           }
+          
+          displayStream.getVideoTracks()[0].onended = () => {
+            stopRecording();
+          };
         } catch (error) {
           console.error('Screen sharing error:', error);
           toast({
@@ -223,14 +239,12 @@ const RecordingStudio: React.FC = () => {
           });
           return false;
         }
+      } else if (streamRef.current && videoRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        await videoRef.current.play().catch(e => console.error("Could not play video:", e));
       }
       
       combinedStream = new MediaStream([...videoTracks, ...audioTracks]);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = combinedStream;
-        await videoRef.current.play().catch(e => console.error("Could not play video:", e));
-      }
       
       return true;
     } catch (error) {
@@ -523,6 +537,17 @@ const RecordingStudio: React.FC = () => {
     }));
   };
 
+  const toggleCameraPosition = () => {
+    const positions: Array<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'> = [
+      'bottom-right', 'bottom-left', 'top-right', 'top-left'
+    ];
+    
+    const currentIndex = positions.indexOf(cameraPosition);
+    const nextIndex = (currentIndex + 1) % positions.length;
+    
+    setCameraPosition(positions[nextIndex]);
+  };
+
   return (
     <div className="bg-white rounded-xl overflow-hidden">
       {recordingState === 'idle' && (
@@ -646,9 +671,13 @@ const RecordingStudio: React.FC = () => {
       {(recordingState === 'recording' || recordingState === 'paused') && (
         <div className="p-6">
           <RecordingPreview 
-            videoRef={videoRef} 
+            videoRef={videoRef}
+            userVideoRef={recordingOptions.screen && recordingOptions.video ? userVideoRef : undefined}
+            isScreenSharing={recordingOptions.screen}
             duration={duration}
             isPaused={recordingState === 'paused'}
+            cameraPosition={cameraPosition}
+            onToggleCameraPosition={toggleCameraPosition}
           />
           <RecordingControls 
             recordingState={recordingState}
@@ -656,6 +685,7 @@ const RecordingStudio: React.FC = () => {
             onPause={pauseRecording}
             onResume={resumeRecording}
             onStop={stopRecording}
+            onToggleCameraPosition={toggleCameraPosition}
           />
         </div>
       )}

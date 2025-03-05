@@ -1,14 +1,26 @@
 
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Camera } from 'lucide-react';
 
 interface RecordingPreviewProps {
   videoRef: React.RefObject<HTMLVideoElement>;
   duration: number;
   isPaused: boolean;
+  userVideoRef?: React.RefObject<HTMLVideoElement>;
+  isScreenSharing?: boolean;
+  cameraPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  onToggleCameraPosition?: () => void;
 }
 
-const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration, isPaused }) => {
+const RecordingPreview: React.FC<RecordingPreviewProps> = ({ 
+  videoRef, 
+  duration, 
+  isPaused,
+  userVideoRef,
+  isScreenSharing,
+  cameraPosition = 'bottom-right',
+  onToggleCameraPosition
+}) => {
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   
   // Format duration as MM:SS
@@ -73,6 +85,22 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
     };
   }, [videoRef]);
 
+  // Helper to get position classes for the webcam PiP
+  const getPositionClasses = () => {
+    switch (cameraPosition) {
+      case 'bottom-right':
+        return 'bottom-4 right-4';
+      case 'bottom-left':
+        return 'bottom-4 left-4';
+      case 'top-right':
+        return 'top-4 right-4';
+      case 'top-left':
+        return 'top-4 left-4';
+      default:
+        return 'bottom-4 right-4';
+    }
+  };
+
   return (
     <div className="relative w-full rounded-lg overflow-hidden bg-slate-800">
       <video 
@@ -83,6 +111,28 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
         playsInline
         style={{ transform: 'none' }} // Prevent mirroring
       />
+      
+      {/* Picture-in-picture webcam when screen sharing */}
+      {isScreenSharing && userVideoRef && (
+        <div className={`absolute ${getPositionClasses()} w-1/4 aspect-video rounded-lg overflow-hidden border-2 border-white/20 shadow-lg`}>
+          <video 
+            ref={userVideoRef} 
+            className="w-full h-full object-cover" 
+            autoPlay 
+            muted 
+            playsInline
+            style={{ transform: 'none' }} // Prevent mirroring
+          />
+          {onToggleCameraPosition && (
+            <button 
+              onClick={onToggleCameraPosition}
+              className="absolute top-1 right-1 bg-black/50 rounded-full p-1 text-white hover:bg-black/70"
+            >
+              <Camera className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      )}
       
       {!isPreviewVisible && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-800/30">
