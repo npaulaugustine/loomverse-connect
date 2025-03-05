@@ -1,11 +1,22 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import SmoothScroll from '../components/ui/SmoothScroll';
 import Navbar from '../components/layout/Navbar';
 import RecordingStudio from '../components/recording/RecordingStudio';
 import { Tag } from 'lucide-react';
+import { analytics } from '@/services/firebase';
+import { logEvent } from 'firebase/analytics';
 
 const Record: React.FC = () => {
+  // Log page view to Firebase Analytics
+  useEffect(() => {
+    logEvent(analytics, 'page_view', {
+      page_title: 'Record',
+      page_location: window.location.href,
+      page_path: window.location.pathname
+    });
+  }, []);
+
   return (
     <SmoothScroll className="relative">
       <Navbar />

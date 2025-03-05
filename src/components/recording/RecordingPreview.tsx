@@ -17,33 +17,59 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Ensure video element is properly sized and displayed
+  // Ensure proper initialization and display of video stream
   useEffect(() => {
-    if (videoRef.current) {
-      // Force a repaint to ensure proper rendering
-      videoRef.current.style.display = 'none';
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.style.display = 'block';
-        }
-      }, 0);
-    }
-  }, [videoRef]);
+    const checkVideoDisplay = () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.style.display = 'block';
+        setIsPreviewVisible(true);
+      } else {
+        setIsPreviewVisible(false);
+      }
+    };
 
-  // Handle visibility issues
+    // Check immediately and again after a short delay
+    checkVideoDisplay();
+    const timeout = setTimeout(checkVideoDisplay, 500);
+    
+    return () => clearTimeout(timeout);
+  }, [videoRef, videoRef.current?.srcObject]);
+
+  // Monitor video visibility
   useEffect(() => {
+    if (!videoRef.current) return;
+    
+    const videoElement = videoRef.current;
+    
     const checkVisibility = () => {
-      if (videoRef.current) {
-        if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-          setIsPreviewVisible(false);
+      if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+        if (videoElement.srcObject) {
+          // Try to refresh the display
+          const stream = videoElement.srcObject as MediaStream;
+          if (stream.active && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === 'live') {
+            setIsPreviewVisible(true);
+          } else {
+            setIsPreviewVisible(false);
+          }
         } else {
-          setIsPreviewVisible(true);
+          setIsPreviewVisible(false);
         }
+      } else {
+        setIsPreviewVisible(true);
       }
     };
     
     const interval = setInterval(checkVisibility, 1000);
-    return () => clearInterval(interval);
+    
+    // Add event listeners to detect when video starts playing
+    videoElement.addEventListener('play', () => setIsPreviewVisible(true));
+    videoElement.addEventListener('loadedmetadata', () => setIsPreviewVisible(true));
+    
+    return () => {
+      clearInterval(interval);
+      videoElement.removeEventListener('play', () => setIsPreviewVisible(true));
+      videoElement.removeEventListener('loadedmetadata', () => setIsPreviewVisible(true));
+    };
   }, [videoRef]);
 
   return (

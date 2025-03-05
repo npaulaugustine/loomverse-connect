@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,10 @@ import {
   generateSummary,
   extractTopics 
 } from '@/services/ai-service';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { storage, firestore } from '@/services/firebase';
+import { v4 as uuidv4 } from 'uuid';
 
 const RecordingStudio: React.FC = () => {
   const navigate = useNavigate();
@@ -131,10 +134,16 @@ const RecordingStudio: React.FC = () => {
         }
         
         const userStream = await navigator.mediaDevices.getUserMedia({
-          video: recordingOptions.video,
+          video: recordingOptions.video ? { width: 1280, height: 720 } : false,
           audio: recordingOptions.audio
         });
+        
         streamRef.current = userStream;
+        
+        if (recordingOptions.video && videoRef.current) {
+          videoRef.current.srcObject = userStream;
+          videoRef.current.play().catch(e => console.error("Could not play video:", e));
+        }
       }
       
       if (recordingOptions.screen) {
@@ -147,15 +156,18 @@ const RecordingStudio: React.FC = () => {
             } as MediaTrackConstraints,
             audio: recordingOptions.audio
           });
+          
           screenStreamRef.current = displayStream;
           
           if (recordingOptions.video && streamRef.current) {
             if (videoRef.current) {
               videoRef.current.srcObject = displayStream;
+              videoRef.current.play().catch(e => console.error("Could not play video:", e));
             }
           } else {
             if (videoRef.current) {
               videoRef.current.srcObject = displayStream;
+              videoRef.current.play().catch(e => console.error("Could not play video:", e));
             }
           }
         } catch (error) {
@@ -169,6 +181,7 @@ const RecordingStudio: React.FC = () => {
         }
       } else if (streamRef.current && videoRef.current) {
         videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(e => console.error("Could not play video:", e));
       }
       
       return true;
@@ -330,80 +343,128 @@ const RecordingStudio: React.FC = () => {
 
   const saveRecording = async () => {
     if (recordedBlob) {
-      if (!transcription) {
-        await processRecordingWithAI();
+      setIsProcessing(true);
+      
+      try {
+        if (!transcription) {
+          await processRecordingWithAI();
+        }
+        
+        const recordingId = `rec_${uuidv4()}`;
+        
+        const storageRef = ref(storage, `recordings/${recordingId}.webm`);
+        await uploadBytes(storageRef, recordedBlob);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        const recordingData = {
+          id: recordingId,
+          title: videoTitle,
+          description: videoDescription,
+          url: downloadURL,
+          duration: duration,
+          createdAt: serverTimestamp(),
+          views: 0,
+          isPublic: false,
+          transcription: transcription,
+          tags: tags,
+          aiSummary: aiSummary,
+          topics: topics
+        };
+        
+        await addDoc(collection(firestore, "recordings"), recordingData);
+        
+        const localRecordingData = {
+          ...recordingData,
+          createdAt: new Date().toISOString(),
+          url: URL.createObjectURL(recordedBlob)
+        };
+        
+        const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+        savedRecordings.push(localRecordingData);
+        localStorage.setItem('recordings', JSON.stringify(savedRecordings));
+        
+        toast({
+          title: "Recording Saved",
+          description: "Your recording has been saved to the cloud.",
+        });
+        
+        navigate(`/recording/${recordingId}`);
+      } catch (error) {
+        console.error('Error saving recording:', error);
+        toast({
+          title: "Save Error",
+          description: "Failed to save recording. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsProcessing(false);
       }
-      
-      const recordingId = `rec_${Date.now()}`;
-      
-      const url = URL.createObjectURL(recordedBlob);
-      
-      const recordingData = {
-        id: recordingId,
-        title: videoTitle,
-        description: videoDescription,
-        url: url,
-        duration: duration,
-        createdAt: new Date().toISOString(),
-        views: 0,
-        isPublic: false,
-        transcription: transcription,
-        tags: tags,
-        aiSummary: aiSummary,
-        topics: topics
-      };
-      
-      const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-      savedRecordings.push(recordingData);
-      localStorage.setItem('recordings', JSON.stringify(savedRecordings));
-      
-      toast({
-        title: "Recording Saved",
-        description: "Your recording has been saved successfully.",
-      });
-      
-      navigate(`/recording/${recordingId}`);
     }
   };
 
   const shareRecording = async () => {
     if (recordedBlob) {
-      if (!transcription) {
-        await processRecordingWithAI();
+      setIsProcessing(true);
+      
+      try {
+        if (!transcription) {
+          await processRecordingWithAI();
+        }
+        
+        const recordingId = `rec_${uuidv4()}`;
+        
+        const storageRef = ref(storage, `recordings/${recordingId}.webm`);
+        await uploadBytes(storageRef, recordedBlob);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        const shareUrl = `${window.location.origin}/share/${recordingId}`;
+        
+        const recordingData = {
+          id: recordingId,
+          title: videoTitle,
+          description: videoDescription,
+          url: downloadURL,
+          duration: duration,
+          createdAt: serverTimestamp(),
+          views: 0,
+          isPublic: true,
+          shareUrl: shareUrl,
+          transcription: transcription,
+          tags: tags,
+          aiSummary: aiSummary,
+          topics: topics
+        };
+        
+        await addDoc(collection(firestore, "recordings"), recordingData);
+        
+        const localRecordingData = {
+          ...recordingData,
+          createdAt: new Date().toISOString(),
+          url: URL.createObjectURL(recordedBlob)
+        };
+        
+        const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
+        savedRecordings.push(localRecordingData);
+        localStorage.setItem('recordings', JSON.stringify(savedRecordings));
+        
+        setRecordingState('shared');
+        
+        toast({
+          title: "Recording Shared",
+          description: `Your recording is now ready to share at ${shareUrl}`,
+        });
+        
+        navigate(`/recording/${recordingId}`);
+      } catch (error) {
+        console.error('Error sharing recording:', error);
+        toast({
+          title: "Share Error",
+          description: "Failed to share recording. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsProcessing(false);
       }
-      
-      const recordingId = `rec_${Date.now()}`;
-      
-      const url = URL.createObjectURL(recordedBlob);
-      
-      const recordingData = {
-        id: recordingId,
-        title: videoTitle,
-        description: videoDescription,
-        url: url,
-        duration: duration,
-        createdAt: new Date().toISOString(),
-        views: 0,
-        isPublic: true,
-        shareUrl: `${window.location.origin}/share/${recordingId}`,
-        transcription: transcription,
-        tags: tags,
-        aiSummary: aiSummary,
-        topics: topics
-      };
-      
-      const savedRecordings = JSON.parse(localStorage.getItem('recordings') || '[]');
-      savedRecordings.push(recordingData);
-      localStorage.setItem('recordings', JSON.stringify(savedRecordings));
-      
-      setRecordingState('shared');
-      
-      toast({
-        title: "Recording Shared",
-        description: "Your recording is now ready to share.",
-      });
-      
-      navigate(`/recording/${recordingId}`);
     }
   };
 
