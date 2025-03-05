@@ -13,7 +13,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
   // Format duration as MM:SS
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -80,6 +80,7 @@ const RecordingPreview: React.FC<RecordingPreviewProps> = ({ videoRef, duration,
         autoPlay 
         muted 
         playsInline
+        style={{ transform: 'none' }} // Prevent mirroring
       />
       
       {!isPreviewVisible && (

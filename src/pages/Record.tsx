@@ -15,6 +15,23 @@ const Record: React.FC = () => {
       page_location: window.location.href,
       page_path: window.location.pathname
     });
+
+    // Request permissions early to initialize camera
+    const requestEarlyPermissions = async () => {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          // Just request access - we'll stop the stream immediately
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          // Stop all tracks to release camera
+          stream.getTracks().forEach(track => track.stop());
+          console.log('Camera and microphone permissions granted early');
+        }
+      } catch (error) {
+        console.log('Early permission request failed:', error);
+      }
+    };
+
+    requestEarlyPermissions();
   }, []);
 
   return (

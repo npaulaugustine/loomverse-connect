@@ -54,6 +54,40 @@ const RecordingStudio: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (recordingState === 'idle') {
+      initializePreview();
+    }
+  }, [recordingOptions]);
+
+  const initializePreview = async () => {
+    try {
+      stopAllStreams();
+      
+      if (recordingOptions.video) {
+        const hasPermission = await checkPermissions();
+        if (!hasPermission) {
+          const granted = await requestPermissions();
+          if (!granted) return;
+        }
+        
+        const userStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: false
+        });
+        
+        streamRef.current = userStream;
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = userStream;
+          await videoRef.current.play().catch(e => console.error("Could not play video:", e));
+        }
+      }
+    } catch (error) {
+      console.error('Preview initialization error:', error);
+    }
+  };
+
   const checkPermissions = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -65,17 +99,26 @@ const RecordingStudio: React.FC = () => {
         return false;
       }
 
-      const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
-      const micPermissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      
-      setPermission({
-        video: permissionStatus.state === 'granted',
-        audio: micPermissionStatus.state === 'granted'
-      });
+      try {
+        const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        const micPermissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        
+        setPermission({
+          video: permissionStatus.state === 'granted',
+          audio: micPermissionStatus.state === 'granted'
+        });
 
-      return permissionStatus.state === 'granted' && micPermissionStatus.state === 'granted';
+        return permissionStatus.state === 'granted' && micPermissionStatus.state === 'granted';
+      } catch (e) {
+        console.log("Permissions API not supported, trying direct access");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        setPermission({ video: true, audio: true });
+        return true;
+      }
     } catch (error) {
       console.error('Permission check error:', error);
+      setPermission({ video: false, audio: false });
       return false;
     }
   };
@@ -126,6 +169,10 @@ const RecordingStudio: React.FC = () => {
       stopAllStreams();
       chunksRef.current = [];
       
+      let combinedStream: MediaStream | null = null;
+      let videoTracks: MediaStreamTrack[] = [];
+      let audioTracks: MediaStreamTrack[] = [];
+      
       if (recordingOptions.video || recordingOptions.audio) {
         const hasPermission = await checkPermissions();
         if (!hasPermission) {
@@ -140,9 +187,12 @@ const RecordingStudio: React.FC = () => {
         
         streamRef.current = userStream;
         
-        if (recordingOptions.video && videoRef.current) {
-          videoRef.current.srcObject = userStream;
-          videoRef.current.play().catch(e => console.error("Could not play video:", e));
+        if (recordingOptions.video) {
+          videoTracks = [...videoTracks, ...userStream.getVideoTracks()];
+        }
+        
+        if (recordingOptions.audio) {
+          audioTracks = [...audioTracks, ...userStream.getAudioTracks()];
         }
       }
       
@@ -159,16 +209,10 @@ const RecordingStudio: React.FC = () => {
           
           screenStreamRef.current = displayStream;
           
-          if (recordingOptions.video && streamRef.current) {
-            if (videoRef.current) {
-              videoRef.current.srcObject = displayStream;
-              videoRef.current.play().catch(e => console.error("Could not play video:", e));
-            }
-          } else {
-            if (videoRef.current) {
-              videoRef.current.srcObject = displayStream;
-              videoRef.current.play().catch(e => console.error("Could not play video:", e));
-            }
+          videoTracks = [...videoTracks, ...displayStream.getVideoTracks()];
+          
+          if (recordingOptions.audio) {
+            audioTracks = [...audioTracks, ...displayStream.getAudioTracks()];
           }
         } catch (error) {
           console.error('Screen sharing error:', error);
@@ -179,9 +223,13 @@ const RecordingStudio: React.FC = () => {
           });
           return false;
         }
-      } else if (streamRef.current && videoRef.current) {
-        videoRef.current.srcObject = streamRef.current;
-        videoRef.current.play().catch(e => console.error("Could not play video:", e));
+      }
+      
+      combinedStream = new MediaStream([...videoTracks, ...audioTracks]);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = combinedStream;
+        await videoRef.current.play().catch(e => console.error("Could not play video:", e));
       }
       
       return true;
@@ -529,12 +577,18 @@ const RecordingStudio: React.FC = () => {
                     autoPlay 
                     muted 
                     playsInline
+                    style={{ transform: 'none' }}
                   />
                 )}
-                {recordingOptions.screen && (
+                {recordingOptions.screen && !recordingOptions.video && (
                   <div className="text-center">
                     <Monitor className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">Your screen will be shared when recording starts</p>
+                  </div>
+                )}
+                {recordingOptions.screen && recordingOptions.video && permission.video && (
+                  <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm">
+                    Your screen will also be recorded
                   </div>
                 )}
               </div>
